@@ -79,7 +79,7 @@ from elevenlabs import generate, save
 def text_to_audio_elevenlabs(text, lang):
     try:
         voice = "Rachel"  # Choose a natural voice from ElevenLabs
-        audio = generate(text=text, voice=voice, model="eleven_multilingual_v1", api_key="YOUR_ELEVENLABS_API_KEY")
+        audio = generate(text=text, voice=voice, model="eleven_multilingual_v1", api_key="sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e")
         audio_file = BytesIO(audio)
         audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
         audio_html = f'<audio controls><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
