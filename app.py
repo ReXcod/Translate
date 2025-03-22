@@ -25,23 +25,6 @@ LANGUAGES = {
     "Portuguese": "pt"
 }
 
-# Updated voice mapping for ElevenLabs based on your list
-VOICE_MAP = {
-    "en": "Grace",     # English (non-legacy)
-    "hi": "Lily",      # Hindi (non-legacy, approximation)
-    "mr": "Lily",      # Marathi (approximation)
-    "la": "Adam",      # Latin (legacy, but available)
-    "el": "Daniel",    # Greek (non-legacy)
-    "es": "Grace",     # Spanish (non-legacy, approximation)
-    "fr": "Mimi",      # French (legacy, explicitly requested)
-    "de": "Bill",      # German (non-legacy)
-    "ja": "Grace",     # Japanese (fallback)
-    "zh-cn": "Grace",  # Chinese (fallback)
-    "ar": "Grace",     # Arabic (fallback)
-    "ru": "Grace",     # Russian (fallback)
-    "pt": "Grace"      # Portuguese (approximation)
-}
-
 # Cached function to convert audio file to text
 @st.cache_data
 def audio_to_text(audio_file_content):
@@ -73,11 +56,11 @@ def translate_text(text, dest_lang):
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
-# Cached function to convert text to audio using ElevenLabs
+# Cached function to convert text to audio using ElevenLabs with "Gigi" for all
 @st.cache_data
 def text_to_audio_elevenlabs(text, lang):
     try:
-        voice = VOICE_MAP.get(lang, "Grace")  # Default to Grace if lang not found
+        voice = "Gigi"  # Use Gigi for all languages
         api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
         audio = generate(
             text=text,
@@ -93,8 +76,8 @@ def text_to_audio_elevenlabs(text, lang):
         return f"Error generating audio with ElevenLabs: {str(e)}"
 
 # Streamlit app
-st.title("Language Translator with ElevenLabs TTS")
-st.write("Upload a WAV file, choose input/output languages, and get natural-sounding translated audio!")
+st.title("Language Translator with ElevenLabs TTS (Gigi Voice)")
+st.write("Upload a WAV file, choose input/output languages, and get translated audio with Gigi's voice!")
 
 # Option to auto-detect or choose input language
 input_mode = st.radio("Input Language Mode", ("Auto-Detect", "Manual Selection"))
@@ -135,9 +118,9 @@ if uploaded_file is not None:
 
         with st.spinner("Generating audio..."):
             audio_output = text_to_audio_elevenlabs(translated_text, output_lang_code)
-        st.write(f"{output_lang_name} Audio Output:")
+        st.write(f"{output_lang_name} Audio Output (Gigi Voice):")
         st.markdown(audio_output, unsafe_allow_html=True)
     else:
         st.error("Audio processing failed.")
 
-st.write("Note: Uses ElevenLabs with updated voices. Set ELEVENLABS_API_KEY in environment variables for security.")
+st.write("Note: Uses ElevenLabs with Gigi voice for all languages. Set ELEVENLABS_API_KEY in environment variables for security.")
