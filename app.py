@@ -25,21 +25,21 @@ LANGUAGES = {
     "Portuguese": "pt"
 }
 
-# Voice mapping for ElevenLabs
+# Updated voice mapping for ElevenLabs based on your list
 VOICE_MAP = {
-    "en": "Rachel",  # English
-    "hi": "Priya",   # Hindi
-    "mr": "Priya",   # Marathi (approximation)
-    "la": "Adam",    # Latin
-    "el": "Dimitri", # Greek
-    "es": "Lucia",   # Spanish
-    "fr": "Mimi",    # French
-    "de": "Antoni",  # German
-    "ja": "Rachel",  # Japanese (fallback)
-    "zh-cn": "Rachel",  # Chinese (fallback)
-    "ar": "Rachel",  # Arabic (fallback)
-    "ru": "Rachel",  # Russian (fallback)
-    "pt": "Lucia"    # Portuguese (approximation)
+    "en": "Grace",     # English (non-legacy)
+    "hi": "Lily",      # Hindi (non-legacy, approximation)
+    "mr": "Lily",      # Marathi (approximation)
+    "la": "Adam",      # Latin (legacy, but available)
+    "el": "Daniel",    # Greek (non-legacy)
+    "es": "Grace",     # Spanish (non-legacy, approximation)
+    "fr": "Mimi",      # French (legacy, explicitly requested)
+    "de": "Bill",      # German (non-legacy)
+    "ja": "Grace",     # Japanese (fallback)
+    "zh-cn": "Grace",  # Chinese (fallback)
+    "ar": "Grace",     # Arabic (fallback)
+    "ru": "Grace",     # Russian (fallback)
+    "pt": "Grace"      # Portuguese (approximation)
 }
 
 # Cached function to convert audio file to text
@@ -65,11 +65,11 @@ def detect_language(text):
     except:
         return "unknown"
 
-# Cached function to translate text (split into chunks for better accuracy)
+# Cached function to translate text
 @st.cache_data
 def translate_text(text, dest_lang):
     translator = Translator()
-    chunks = textwrap.wrap(text, 500)  # Split into smaller chunks
+    chunks = textwrap.wrap(text, 500)
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
@@ -77,8 +77,8 @@ def translate_text(text, dest_lang):
 @st.cache_data
 def text_to_audio_elevenlabs(text, lang):
     try:
-        voice = VOICE_MAP.get(lang, "Rachel")  # Default to Rachel if lang not found
-        api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"  # Fallback to your key
+        voice = VOICE_MAP.get(lang, "Grace")  # Default to Grace if lang not found
+        api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
         audio = generate(
             text=text,
             voice=voice,
@@ -113,15 +113,11 @@ output_lang_name = st.selectbox("Select Output Language", list(LANGUAGES.keys())
 output_lang_code = LANGUAGES[output_lang_name]
 
 if uploaded_file is not None:
-    # Read file content once
     audio_content = uploaded_file.read()
-
-    # Convert audio to text
     with st.spinner("Processing audio..."):
         input_text = audio_to_text(audio_content)
     st.write("Recognized Text:", input_text)
 
-    # Determine input language
     if input_text not in ["Could not understand the audio", "Could not request results; check your internet connection"]:
         if input_mode == "Auto-Detect":
             detected_lang = detect_language(input_text)
@@ -133,12 +129,10 @@ if uploaded_file is not None:
         else:
             st.write(f"Selected Input Language: {input_lang_name} ({input_lang_code})")
 
-        # Translate to chosen language
         with st.spinner("Translating..."):
             translated_text = translate_text(input_text, output_lang_code)
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
-        # Convert translated text to audio with ElevenLabs
         with st.spinner("Generating audio..."):
             audio_output = text_to_audio_elevenlabs(translated_text, output_lang_code)
         st.write(f"{output_lang_name} Audio Output:")
@@ -146,4 +140,4 @@ if uploaded_file is not None:
     else:
         st.error("Audio processing failed.")
 
-st.write("Note: Uses ElevenLabs for natural audio. Your API key is included as a fallback; set ELEVENLABS_API_KEY in environment variables for security.")
+st.write("Note: Uses ElevenLabs with updated voices. Set ELEVENLABS_API_KEY in environment variables for security.")
