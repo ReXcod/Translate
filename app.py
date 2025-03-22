@@ -8,6 +8,7 @@ import requests
 from io import BytesIO
 import base64
 import textwrap
+import random
 
 # Supported languages
 LANGUAGES = {
@@ -26,18 +27,17 @@ LANGUAGES = {
     "Portuguese": "pt"
 }
 
-# Function to get a default voice from ElevenLabs
+# Function to get all available voices from ElevenLabs
 @st.cache_data
-def get_default_voice(api_key):
+def get_available_voices(api_key):
     try:
         response = requests.get("https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": api_key})
         voices = response.json().get("voices", [])
         if voices:
-            # Return the first available voice's ID
-            return voices[0]["voice_id"]
-        return "Rachel"  # Fallback to Rachel if API call fails or no voices found
+            return [voice["voice_id"] for voice in voices]  # Return list of voice IDs
+        return ["Rachel"]  # Fallback to Rachel if no voices found
     except Exception:
-        return "Rachel"  # Fallback in case of any error
+        return ["Rachel"]  # Fallback in case of error
 
 # Cached function to convert audio file to text
 @st.cache_data
@@ -70,10 +70,10 @@ def translate_text(text, dest_lang):
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
-# Cached function to convert text to audio using ElevenLabs
-@st.cache_data
-def text_to_audio_elevenlabs(text, lang, voice):
+# Function to convert text to audio with a random voice (not cached due to randomness)
+def text_to_audio_elevenlabs(text, lang, voices):
     try:
+        voice = random.choice(voices)  # Pick a random voice each time
         api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
         audio = generate(
             text=text,
@@ -84,18 +84,18 @@ def text_to_audio_elevenlabs(text, lang, voice):
         audio_file = BytesIO(audio)
         audio_base64 = base64.b64encode(audio_file.read()).decode('utf-8')
         audio_html = f'<audio controls><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
-        return audio_html
+        return audio_html, voice  # Return audio HTML and the voice used
     except Exception as e:
-        return f"Error generating audio with ElevenLabs: {str(e)}"
+        return f"Error generating audio with ElevenLabs: {str(e)}", None
 
 # Streamlit app
-st.title("Language Translator with ElevenLabs TTS")
-st.write("Upload a WAV file, choose input/output languages, and get translated audio with a working ElevenLabs voice!")
+st.title("Language Translator with Random ElevenLabs Voices")
+st.write("Upload a WAV file, choose input/output languages, and get translated audio with a random voice!")
 
-# Get the default voice once at app startup
+# Get available voices at startup
 api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
-default_voice = get_default_voice(api_key)
-st.write(f"Using ElevenLabs Voice: {default_voice}")
+available_voices = get_available_voices(api_key)
+st.write(f"Available Voices: {', '.join(available_voices)}")
 
 # Option to auto-detect or choose input language
 input_mode = st.radio("Input Language Mode", ("Auto-Detect", "Manual Selection"))
@@ -135,10 +135,10 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         with st.spinner("Generating audio..."):
-            audio_output = text_to_audio_elevenlabs(translated_text, output_lang_code, default_voice)
-        st.write(f"{output_lang_name} Audio Output:")
+            audio_output, used_voice = text_to_audio_elevenlabs(translated_text, output_lang_code, available_voices)
+        st.write(f"{output_lang_name} Audio Output (Voice: {used_voice}):")
         st.markdown(audio_output, unsafe_allow_html=True)
     else:
         st.error("Audio processing failed.")
 
-st.write("Note: Uses a dynamically selected ElevenLabs voice. Set ELEVENLABS_API_KEY in environment variables for security.")
+st.write("Note: Uses a random ElevenLabs voice each time. Set ELEVENLABS_API_KEY in environment variables for security.")
