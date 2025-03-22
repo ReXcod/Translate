@@ -4,6 +4,7 @@ from langdetect import detect
 from googletrans import Translator
 from elevenlabs import generate
 import os
+import requests
 from io import BytesIO
 import base64
 import textwrap
@@ -24,6 +25,19 @@ LANGUAGES = {
     "Russian": "ru",
     "Portuguese": "pt"
 }
+
+# Function to get a default voice from ElevenLabs
+@st.cache_data
+def get_default_voice(api_key):
+    try:
+        response = requests.get("https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": api_key})
+        voices = response.json().get("voices", [])
+        if voices:
+            # Return the first available voice's ID
+            return voices[0]["voice_id"]
+        return "Rachel"  # Fallback to Rachel if API call fails or no voices found
+    except Exception:
+        return "Rachel"  # Fallback in case of any error
 
 # Cached function to convert audio file to text
 @st.cache_data
@@ -56,11 +70,10 @@ def translate_text(text, dest_lang):
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
-# Cached function to convert text to audio using ElevenLabs with "Gigi" for all
+# Cached function to convert text to audio using ElevenLabs
 @st.cache_data
-def text_to_audio_elevenlabs(text, lang):
+def text_to_audio_elevenlabs(text, lang, voice):
     try:
-        voice = "Gigi"  # Use Gigi for all languages
         api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
         audio = generate(
             text=text,
@@ -76,8 +89,13 @@ def text_to_audio_elevenlabs(text, lang):
         return f"Error generating audio with ElevenLabs: {str(e)}"
 
 # Streamlit app
-st.title("Language Translator with ElevenLabs TTS (Gigi Voice)")
-st.write("Upload a WAV file, choose input/output languages, and get translated audio with Gigi's voice!")
+st.title("Language Translator with ElevenLabs TTS")
+st.write("Upload a WAV file, choose input/output languages, and get translated audio with a working ElevenLabs voice!")
+
+# Get the default voice once at app startup
+api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
+default_voice = get_default_voice(api_key)
+st.write(f"Using ElevenLabs Voice: {default_voice}")
 
 # Option to auto-detect or choose input language
 input_mode = st.radio("Input Language Mode", ("Auto-Detect", "Manual Selection"))
@@ -117,10 +135,10 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         with st.spinner("Generating audio..."):
-            audio_output = text_to_audio_elevenlabs(translated_text, output_lang_code)
-        st.write(f"{output_lang_name} Audio Output (Gigi Voice):")
+            audio_output = text_to_audio_elevenlabs(translated_text, output_lang_code, default_voice)
+        st.write(f"{output_lang_name} Audio Output:")
         st.markdown(audio_output, unsafe_allow_html=True)
     else:
         st.error("Audio processing failed.")
 
-st.write("Note: Uses ElevenLabs with Gigi voice for all languages. Set ELEVENLABS_API_KEY in environment variables for security.")
+st.write("Note: Uses a dynamically selected ElevenLabs voice. Set ELEVENLABS_API_KEY in environment variables for security.")
