@@ -7,7 +7,7 @@ import os
 from io import BytesIO
 import base64
 
-# Supported languages for output (Google Translate and gTTS compatible)
+# Supported languages (for both input and output)
 LANGUAGES = {
     "English": "en",
     "Hindi": "hi",
@@ -24,10 +24,11 @@ LANGUAGES = {
     "Portuguese": "pt"
 }
 
-# Function to convert audio file to text
-def audio_to_text(audio_file):
+# Cached function to convert audio file to text
+@st.cache_data
+def audio_to_text(audio_file_content):
     recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
+    with sr.AudioFile(BytesIO(audio_file_content)) as source:
         audio_data = recognizer.record(source)
         try:
             text = recognizer.recognize_google(audio_data)
@@ -37,7 +38,8 @@ def audio_to_text(audio_file):
         except sr.RequestError:
             return "Could not request results; check your internet connection"
 
-# Function to detect language
+# Cached function to detect language
+@st.cache_data
 def detect_language(text):
     try:
         lang = detect(text)
@@ -45,17 +47,18 @@ def detect_language(text):
     except:
         return "unknown"
 
-# Function to translate text to chosen language
+# Cached function to translate text
+@st.cache_data
 def translate_text(text, dest_lang):
     translator = Translator()
     translated = translator.translate(text, dest=dest_lang)
     return translated.text
 
-# Function to convert text to audio with gTTS
+# Cached function to convert text to audio
+@st.cache_data
 def text_to_audio(text, lang):
     try:
-        # Adjust TLD for natural voice where applicable
-        tld = 'co.in' if lang in ['hi', 'mr'] else 'com'  # Indian accent for Hindi/Marathi, default for others
+        tld = 'co.in' if lang in ['hi', 'mr'] else 'com'
         tts = gTTS(text=text, lang=lang, slow=False, tld=tld)
         audio_file = BytesIO()
         tts.write_to_fp(audio_file)
@@ -67,43 +70,55 @@ def text_to_audio(text, lang):
         return f"Error generating audio: {str(e)}"
 
 # Streamlit app
-st.title("Auto-Detect Language Translator with Custom Output")
-st.write("Upload an audio file (WAV format), and choose your output language!")
+st.title("Optimized Language Translator")
+st.write("Upload a WAV file, choose input/output languages, and get translated audio!")
+
+# Option to auto-detect or choose input language
+input_mode = st.radio("Input Language Mode", ("Auto-Detect", "Manual Selection"))
+input_lang_code = "auto"
+if input_mode == "Manual Selection":
+    input_lang_name = st.selectbox("Select Input Language", list(LANGUAGES.keys()))
+    input_lang_code = LANGUAGES[input_lang_name]
 
 # File uploader for audio input
-uploaded_file = st.file_uploader("Choose an audio file", type=["wav"])
+uploaded_file = st.file_uploader("Choose an audio file (WAV)", type=["wav"])
 
 # Language selection for output
 output_lang_name = st.selectbox("Select Output Language", list(LANGUAGES.keys()))
 output_lang_code = LANGUAGES[output_lang_name]
 
 if uploaded_file is not None:
-    # Save uploaded file temporarily
-    with open("temp_audio.wav", "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    # Read file content once and reuse
+    audio_content = uploaded_file.read()
 
     # Convert audio to text
-    st.write("Processing audio...")
-    input_text = audio_to_text("temp_audio.wav")
+    with st.spinner("Processing audio..."):
+        input_text = audio_to_text(audio_content)
     st.write("Recognized Text:", input_text)
 
-    # Detect input language
-    detected_lang = detect_language(input_text)
-    st.write(f"Detected Input Language Code: {detected_lang}")
+    # Determine input language
+    if input_text not in ["Could not understand the audio", "Could not request results; check your internet connection"]:
+        if input_mode == "Auto-Detect":
+            detected_lang = detect_language(input_text)
+            st.write(f"Detected Input Language Code: {detected_lang}")
+            if detected_lang == "unknown":
+                st.error("Could not detect input language.")
+                st.stop()
+            input_lang_code = detected_lang
+        else:
+            st.write(f"Selected Input Language: {input_lang_name} ({input_lang_code})")
 
-    # Translate to chosen language
-    if detected_lang != "unknown" and input_text != "Could not understand the audio":
-        translated_text = translate_text(input_text, output_lang_code)
+        # Translate to chosen language
+        with st.spinner("Translating..."):
+            translated_text = translate_text(input_text, output_lang_code)
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         # Convert translated text to audio
-        audio_output = text_to_audio(translated_text, output_lang_code)
+        with st.spinner("Generating audio..."):
+            audio_output = text_to_audio(translated_text, output_lang_code)
         st.write(f"{output_lang_name} Audio Output:")
         st.markdown(audio_output, unsafe_allow_html=True)
     else:
-        st.write("Unable to process audio or detect language.")
+        st.error("Audio processing failed.")
 
-    # Clean up temporary file
-    os.remove("temp_audio.wav")
-
-st.write("Note: Upload a WAV file. Language detection uses 'langdetect'. Audio output uses gTTS with natural voice settings.")
+st.write("Note: Upload WAV files only.")
