@@ -3,3 +3,4 @@ speechrecognition
 langdetect
 googletrans==3.1.0a0
 gtts
+# elevenlabs  # Uncomment and install if using ElevenLabs TTS
