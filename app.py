@@ -75,7 +75,7 @@ def translate_text(text, dest_lang):
 def text_to_audio_elevenlabs(text, lang, voices):
     try:
         voice = random.choice(voices)
-        api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
+        api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_f4439704332a2d00fc4579e79ec2d33095dc103209e4cba7"
         audio = generate(
             text=text,
             voice=voice,
